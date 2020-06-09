@@ -2894,13 +2894,13 @@ public abstract class SSLEngineTest {
                 .build());
 
         try {
-            doHandshake("a.netty.io", 9999, false);
+            doHandshakeVerifyReusedAndClose("a.netty.io", 9999, false);
             assertSessionCache(serverSslCtx.sessionContext(), 1);
             assertSessionCache(clientSslCtx.sessionContext(), 1);
-            doHandshake("a.netty.io", 9999, true);
+            doHandshakeVerifyReusedAndClose("a.netty.io", 9999, true);
             assertSessionCache(serverSslCtx.sessionContext(), 1);
             assertSessionCache(clientSslCtx.sessionContext(), 1);
-            doHandshake("b.netty.io", 9999, false);
+            doHandshakeVerifyReusedAndClose("b.netty.io", 9999, false);
             assertSessionCache(serverSslCtx.sessionContext(), 2);
             assertSessionCache(clientSslCtx.sessionContext(), 2);
 
@@ -2935,7 +2935,7 @@ public abstract class SSLEngineTest {
         assertEquals(numSessions, numIds);
     }
 
-    private void doHandshake(String host, int port, boolean reuse) throws Exception {
+    private void doHandshakeVerifyReusedAndClose(String host, int port, boolean reuse) throws Exception {
         SSLEngine clientEngine = null;
         SSLEngine serverEngine = null;
         try {
@@ -2943,10 +2943,51 @@ public abstract class SSLEngineTest {
             serverEngine = wrapEngine(serverSslCtx.newEngine(UnpooledByteBufAllocator.DEFAULT));
             handshake(clientEngine, serverEngine);
             assertSessionReusedForEngine(clientEngine, serverEngine, reuse);
+
+            closeOutboundAndInbound(clientEngine, serverEngine);
         } finally {
             cleanupClientSslEngine(clientEngine);
             cleanupServerSslEngine(serverEngine);
         }
+    }
+
+    private void closeOutboundAndInbound(SSLEngine clientEngine, SSLEngine serverEngine) throws SSLException {
+        assertFalse(clientEngine.isInboundDone());
+        assertFalse(clientEngine.isOutboundDone());
+        assertFalse(serverEngine.isInboundDone());
+        assertFalse(serverEngine.isOutboundDone());
+
+
+        ByteBuffer empty = allocateBuffer(0);
+        ByteBuffer cTOs = allocateBuffer(clientEngine.getSession().getPacketBufferSize());
+        ByteBuffer sTOs = allocateBuffer(serverEngine.getSession().getPacketBufferSize());
+
+        ByteBuffer cApps = allocateBuffer(clientEngine.getSession().getApplicationBufferSize());
+        ByteBuffer sApps = allocateBuffer(serverEngine.getSession().getApplicationBufferSize());
+
+        clientEngine.closeOutbound();
+        while (clientEngine.wrap(empty, cTOs).getStatus() != Status.CLOSED) {
+            // call wrap till we produced all data
+        }
+        cTOs.flip();
+
+        while (serverEngine.unwrap(cTOs, sApps).getStatus() != Status.CLOSED) {
+            // call unwrap till we consumed all data
+        }
+
+        serverEngine.closeOutbound();
+        while (serverEngine.wrap(empty, sTOs).getStatus() != Status.CLOSED) {
+            // call wrap till we produced all data
+        }
+        sTOs.flip();
+
+        while (clientEngine.unwrap(sTOs, cApps).getStatus() != Status.CLOSED) {
+            // call unwrap till we consumed all data
+        }
+
+        // Now close the inbound as well
+        clientEngine.closeInbound();
+        serverEngine.closeInbound();
     }
 
     protected void assertSessionReusedForEngine(SSLEngine clientEngine, SSLEngine serverEngine, boolean reuse) {
@@ -2978,7 +3019,7 @@ public abstract class SSLEngineTest {
                 .build());
 
         try {
-            doHandshake("a.netty.io", 9999, false);
+            doHandshakeVerifyReusedAndClose("a.netty.io", 9999, false);
             assertSessionCache(serverSslCtx.sessionContext(), 1);
             assertSessionCache(clientSslCtx.sessionContext(), 1);
 
@@ -3016,10 +3057,10 @@ public abstract class SSLEngineTest {
                 .build());
 
         try {
-            doHandshake("a.netty.io", 9999, false);
+            doHandshakeVerifyReusedAndClose("a.netty.io", 9999, false);
             assertSessionCache(serverSslCtx.sessionContext(), 1);
             assertSessionCache(clientSslCtx.sessionContext(), 1);
-            doHandshake("b.netty.io", 9999, false);
+            doHandshakeVerifyReusedAndClose("b.netty.io", 9999, false);
 
             // As we have a cache size of 1 we should never have more then one session in the cache
             assertSessionCache(serverSslCtx.sessionContext(), 1);

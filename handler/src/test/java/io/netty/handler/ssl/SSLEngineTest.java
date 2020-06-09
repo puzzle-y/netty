@@ -2957,7 +2957,6 @@ public abstract class SSLEngineTest {
         assertFalse(serverEngine.isInboundDone());
         assertFalse(serverEngine.isOutboundDone());
 
-
         ByteBuffer empty = allocateBuffer(0);
         ByteBuffer cTOs = allocateBuffer(clientEngine.getSession().getPacketBufferSize());
         ByteBuffer sTOs = allocateBuffer(serverEngine.getSession().getPacketBufferSize());
@@ -2966,23 +2965,43 @@ public abstract class SSLEngineTest {
         ByteBuffer sApps = allocateBuffer(serverEngine.getSession().getApplicationBufferSize());
 
         clientEngine.closeOutbound();
-        while (clientEngine.wrap(empty, cTOs).getStatus() != Status.CLOSED) {
+        for (;;) {
             // call wrap till we produced all data
+            SSLEngineResult.Status status = clientEngine.wrap(empty, cTOs).getStatus();
+            if (status == Status.CLOSED) {
+                break;
+            }
+            assertTrue(cTOs.hasRemaining());
         }
         cTOs.flip();
 
-        while (serverEngine.unwrap(cTOs, sApps).getStatus() != Status.CLOSED) {
+        for (;;) {
             // call unwrap till we consumed all data
+            SSLEngineResult.Status status = serverEngine.unwrap(cTOs, sApps).getStatus();
+            if (status == Status.CLOSED) {
+                break;
+            }
+            assertTrue(sApps.hasRemaining());
         }
 
         serverEngine.closeOutbound();
-        while (serverEngine.wrap(empty, sTOs).getStatus() != Status.CLOSED) {
+        for (;;) {
             // call wrap till we produced all data
+            SSLEngineResult.Status status = serverEngine.wrap(empty, sTOs).getStatus();
+            if (status == Status.CLOSED) {
+                break;
+            }
+            assertTrue(sTOs.hasRemaining());
         }
         sTOs.flip();
 
-        while (clientEngine.unwrap(sTOs, cApps).getStatus() != Status.CLOSED) {
+        for (;;) {
             // call unwrap till we consumed all data
+            SSLEngineResult.Status status = clientEngine.unwrap(sTOs, cApps).getStatus();
+            if (status == Status.CLOSED) {
+                break;
+            }
+            assertTrue(cApps.hasRemaining());
         }
 
         // Now close the inbound as well

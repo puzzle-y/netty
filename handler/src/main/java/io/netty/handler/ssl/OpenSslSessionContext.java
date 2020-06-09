@@ -71,6 +71,7 @@ public abstract class OpenSslSessionContext implements SSLSessionContext {
 
     @Override
     public void setSessionCacheSize(int size) {
+        ObjectUtil.checkPositiveOrZero(size, "size");
         sessionCache.setSessionCacheSize(size);
     }
 
@@ -81,6 +82,8 @@ public abstract class OpenSslSessionContext implements SSLSessionContext {
 
     @Override
     public void setSessionTimeout(int seconds) {
+        ObjectUtil.checkPositiveOrZero(seconds, "seconds");
+
         Lock writerLock = context.ctxLock.writeLock();
         writerLock.lock();
         try {

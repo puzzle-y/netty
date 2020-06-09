@@ -75,9 +75,6 @@ class OpenSslSessionCache implements SSLSessionCache {
     }
 
     void setSessionTimeout(int seconds) {
-        if (seconds < 0) {
-            throw new IllegalArgumentException();
-        }
         sessionTimeout = seconds;
     }
 
@@ -103,11 +100,8 @@ class OpenSslSessionCache implements SSLSessionCache {
     protected void sessionRemoved(OpenSslSession session) { }
 
     final void setSessionCacheSize(int size) {
-        if (size < 0) {
-            throw new IllegalArgumentException();
-        }
         long oldSize = maximumCacheSize.getAndSet(size);
-        if (oldSize < size) {
+        if (oldSize > size) {
             // Just keep it simple for now and drain the whole cache.
             freeSessions();
         }

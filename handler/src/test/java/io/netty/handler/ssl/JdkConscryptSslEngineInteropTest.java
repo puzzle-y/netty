@@ -98,4 +98,10 @@ public class JdkConscryptSslEngineInteropTest extends SSLEngineTest {
     protected void invalidateSessionsAndAssert(SSLSessionContext context) {
         // Not supported by conscrypt
     }
+
+    @Ignore("Possible Conscrypt bug")
+    public void testSessionCacheTimeout() {
+        // Skip
+        // https://github.com/google/conscrypt/issues/851
+    }
 }
